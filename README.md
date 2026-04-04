@@ -118,6 +118,8 @@ build/runtime_stubs.o \
 arm-none-eabi-objcopy -O binary build/timer_interrupt_blinky.elf build/timer_interrupt_blinky.bin
 
 ## compilation step 6 - check .elf size
+arm-none-eabi-size build/timer_interrupt_blinky.elf
+
    text	   data	    bss	    dec	    hex	filename
     888	      4	      0	    892	    37c	build/timer_interrupt_blinky.elf
 
