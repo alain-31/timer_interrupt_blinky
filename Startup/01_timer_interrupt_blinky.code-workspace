@@ -1,10 +1,5 @@
 {
     "settings": {
         "ros.distro": "humble"
-    },
-    "folders": [
-        {
-            "path": ".."
-        }
-    ]
+    }
 }
