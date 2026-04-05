@@ -21,6 +21,7 @@ echo "Flashing $ELF_PATH ..."
 openocd \
     -f interface/stlink.cfg \
     -f target/stm32f4x.cfg \
+    -c "adapter speed 4000" \
     -c "program $ELF_PATH verify reset exit"
 
 echo "Flash complete."

@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./build.sh rebuild && ./flash.sh
+./build.sh && ./flash.sh
