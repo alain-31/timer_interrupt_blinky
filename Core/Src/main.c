@@ -48,10 +48,11 @@ void TIM2_IRQHandler(void)
     if (TIM2->SR & TIM_SR_UIF)
     {
         TIM2->SR &= ~TIM_SR_UIF;
-        GPIOA->ODR ^= (1U << 1U);
+        /* 10 ms semi-period -> 50 Hz */
+        GPIOA->ODR ^= (1U << 1U); 
         cnt++;
-        /* 50 ms period */
         if (cnt % 5 == 0) {
+            /* 50 ms semi-period -> 10 Hz */
             GPIOA->ODR ^= (1U << 0U);
             cnt = 0;
         }

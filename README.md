@@ -1,136 +1,93 @@
-# STM32 Bare-Metal Timer Interrupt Blinky
+# STM32 Bare-Metal Timer Interrupt Demo
 
-STM32F411RE bare-metal project using:
-- CMSIS (no HAL)
-- Timer interrupt (TIM2)
-- GPIO toggle
+Minimal bare-metal STM32 project using direct register access (no HAL) to generate two output frequencies from a single hardware timer interrupt.
 
-Work in progress.
+## What it does
 
-# Files and their roles
+- TIM2 generates an interrupt every 10 ms
+- PA1 toggles every interrupt → 50 Hz
+- PA0 toggles every 5 interrupts → 10 Hz
 
-## Core/Src/main.c
-Application entry point.
-Contains the user logic:
-- GPIO configuration
-- TIM2 configuration
-- main loop
-- optional interrupt-driven behavior support
+Signals are verified on an oscilloscope.
 
-## Core/Src/system_stm32f4xx.c
-System-level initialization file.
-Typically provides:
-- SystemInit()
-- SystemCoreClock
-- low-level clock/reset related setup expected by CMSIS
+## Key ideas
 
-## CMSIS/Include/core_cm4.h
-CMSIS Cortex-M4 core definitions.
-Provides:
-- CPU register access
-- NVIC definitions
-- SysTick definitions
-- intrinsic functions
+- No HAL
+- No blocking delay loop
+- One timer as a time base
+- Interrupt-driven execution
+- Simple multi-rate scheduling
 
-## CMSIS/Device/ST/STM32F4xx/Include/stm32f411xe.h
-Device-specific register definitions for STM32F411xE.
-Provides:
-- peripheral base addresses
-- register structures
-- bit definitions
-- IRQ numbers
+## Hardware
 
-## CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
-Family-level wrapper header.
-Selects the correct device header depending on the target macro.
+- STM32F411 (or compatible Cortex-M4)
+- Two external LEDs on:
+  - PA0
+  - PA1
+- Oscilloscope connected to both outputs
 
-## CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h
-Header associated with system_stm32f4xx.c.
+## Build
 
-## Startup/startup_stm32f411xe.s
-Startup code and vector table.
-Responsible for:
-- initial stack pointer
-- reset handler
-- default interrupt handlers
-- jumping into C runtime initialization
+./build.sh
 
-## Linker/STM32F411RETX_FLASH.ld
-Memory layout description for the linker.
-Defines:
-- Flash and RAM regions
-- placement of .text, .data, .bss
-- stack/heap boundaries
+## Rebuild
 
-## CMakeLists.txt
-Build configuration.
-Defines:
-- compiler
-- flags
-- source files
-- include paths
-- linker script
-- post-build outputs
+./build.sh rebuild
 
+## Flash
 
-## compilation step 1 - applicative code
- arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -O0 -g3 -Wall -Wextra -I./CMSIS/Include -I./CMSIS/Device/ST/STM32F4xx/Include -c Core/Src/main.c -o build/main.o
+./flash.sh
 
-## compilation step 2 - CMSIS/ST system files
-arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -O0 -g3 -Wall -Wextra -DSTM32F411xE \
--I./CMSIS/Include \
--I./CMSIS/Device/ST/STM32F4xx/Include \
--c Core/Src/system_stm32f4xx.c -o build/system_stm32f4xx.o
+## Run (build + flash)
 
+./run.sh
 
-## compilation step 3 - startup file
-arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -x assembler-with-cpp -DSTM32F411xE \
--c Startup/startup_stm32f411xe.s -o build/startup_stm32f411xe.o
+## Requirements
 
-## compilation step 4 - create file for libc symbols
-touch Core/Src/runtime_stubs.c
+- arm-none-eabi-gcc
+- cmake
+- openocd
+- ST-Link debugger
 
-code:
-void _init(void)
+## Project structure
+
+.
+└── 01_timer_interrupt_blinky
+    ├── build.sh
+    ├── CMakeLists.txt
+    ├── CMSIS/
+    ├── Core/
+    ├── flash.sh
+    ├── .gitignore
+    ├── Linker/
+    ├── README.md
+    ├── run.sh
+    └── Startup/
+
+## Example interrupt handler
+
+void TIM2_IRQHandler(void)
 {
+    if (TIM2->SR & TIM_SR_UIF)
+    {
+        TIM2->SR &= ~TIM_SR_UIF;
+
+        GPIOA->ODR ^= (1U << 1U);
+
+        cnt++;
+        if (cnt % 5 == 0)
+        {
+            GPIOA->ODR ^= (1U << 0U);
+            cnt = 0;
+        }
+    }
 }
 
-void _fini(void)
-{
-}
+## Why this project matters
 
-compile
-arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -O0 -g3 -Wall -Wextra -DSTM32F411xE \
--c Core/Src/runtime_stubs.c -o build/runtime_stubs.o
+This project demonstrates:
 
-## compilation step 4 - link - generation of .elf
- arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -nostartfiles \
-build/main.o \
-build/system_stm32f4xx.o \
-build/startup_stm32f411xe.o \
-build/runtime_stubs.o \
--TLinker/STM32F411RETX_FLASH.ld \
--Wl,-Map=build/output.map \
---specs=nosys.specs \
--o build/timer_interrupt_blinky.elf
-
-## compilation step 5 - optional generation of .bin for st-flash for instance
-arm-none-eabi-objcopy -O binary build/timer_interrupt_blinky.elf build/timer_interrupt_blinky.bin
-
-## compilation step 6 - check .elf size
-arm-none-eabi-size build/timer_interrupt_blinky.elf
-
-   text	   data	    bss	    dec	    hex	filename
-    888	      4	      0	    892	    37c	build/timer_interrupt_blinky.elf
-
-text = 888
-code + constants in Flash.
-
-data = 4
-5 octets of initialized data copied in RAM at startup (from SystemCoreClock presumably)
-
-bss = 0
-no non initialized global variables
-
-## README.md
-Project overview and usage instructions.
+- timer configuration using registers
+- interrupt handling via NVIC
+- hardware-based timing instead of software delays
+- simple embedded scheduling without an RTOS
